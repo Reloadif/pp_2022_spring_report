@@ -1,0 +1,1075 @@
+\documentclass{report}
+
+\usepackage[warn]{mathtext}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage{tempora}
+\usepackage[12pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+
+\geometry{a4paper,top=2cm,bottom=2cm,left=2.5cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+\setlist{nolistsep, itemsep=0.3cm,parsep=0pt}
+
+\usepackage{listings}
+\lstset{language=C++,
+        basicstyle=\footnotesize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{green}\ttfamily,
+		morecomment=[l][\color{red}]{\#}, 
+		tabsize=4,
+		breaklines=true,
+  		breakatwhitespace=true,
+  		title=\lstname,       
+}
+
+\makeatletter
+\renewcommand\@biblabel[1]{#1.\hfil}
+\makeatother
+
+\begin{document}
+
+% Титульный лист %
+\begin{titlepage}
+
+\begin{center}
+Министерство науки и высшего образования Российской Федерации
+\end{center}
+
+\begin{center}
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+\end{center}
+
+\begin{center}
+Институт информационных технологий, математики и механики
+\end{center}
+
+\vspace{4em}
+
+\begin{center}
+\textbf{\LargeОтчет по лабораторной работе} \\
+\end{center}
+\begin{center}
+\textbf{\Large«Сортировка Шелла с четно-нечетным слиянием Бэтчера.»} \\
+\end{center}
+
+\vspace{4em}
+
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\hspace*{5cm}\hspace*{-5cm}\textbf{Выполнил:} \\ студент группы 381906-3 \\ Чёрный Ю. Ю.\\
+\\
+\hspace*{5cm}\hspace*{-5cm}\textbf{Руководитель:}\\ доцент кафедры МОСТ, \\ кандидат технических наук \\ Сысоев А. В.\\
+}
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2022 \end{center}
+
+\end{titlepage}
+
+\setcounter{page}{2}
+
+% Содержание
+\tableofcontents
+\newpage
+
+% Введение
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+\par Нередко встречается задача упорядочивания какого-то множества по какому-то признаку, она часто возникает в реальной жизни, но с развитием информационных технологий эта задача стала почти неотъемлемой их частью. В наше время эту задачу можно решить более чем десятком методов, эти методы называются алгоритмы сортировки. В данной лабораторной работе рассматривается сортировка Шелла.
+\par Сортировка Шелла - алгоритм сортировки, являющийся усовершенствованным вариантом сортировки вставками. Идея метода Шелла состоит в сравнении элементов, стоящих не только рядом, но и на определённом расстоянии друг от друга. При сортировке Шелла сначала сравниваются и сортируются между собой значения, стоящие один от другого на некотором расстоянии d (выбирать это значение можно разными способами). После этого процедура повторяется для некоторых меньших значений d, а завершается сортировка Шелла упорядочиванием элементов при d=1 (то есть обычной сортировкой вставками). Эффективность сортировки Шелла в определённых случаях обеспечивается тем, что элементы «быстрее» встают на свои места (в простых методах сортировки, например, пузырьковой, каждая перестановка двух элементов уменьшает количество инверсий в списке максимум на 1, а при сортировке Шелла это число может быть больше).
+
+ 
+\newpage
+
+% Постановка задачи
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+\par Разработать последовательное приложение для сортировки массива вещественных чисел, применяя алгоритм сортировки Шелла, на основе последовательного приложения разработать параллельные приложения, используя библиотеки OpenMP, TBB и дополнительно STD, причем учитывая все тонкости реализации параллельных алгоритмов.
+Провести тестирование работоспособности приложений, используя Google C++ Testing Framework.
+\newpage
+
+% Описание алгоритма
+\section*{Описание алгоритма}
+\addcontentsline{toc}{section}{Описание алгоритма}
+\par Идея метода заключается в сравнение разделенных на группы элементов последовательности, находящихся друг от друга на некотором расстоянии. Изначально это расстояние равно d или N/2, где N — общее число элементов. На первом шаге каждая группа включает в себя два элемента расположенных друг от друга на расстоянии N/2; они сравниваются между собой, и, в случае необходимости, меняются местами. На последующих шагах также происходят проверка и обмен, но расстояние d сокращается на d/2, и количество групп, соответственно, уменьшается. Постепенно расстояние между элементами уменьшается, и на d=1 проход по массиву происходит в последний раз.
+
+\par Для выбора параметра d была выбрана последовательность Сэджвика:
+\begin{center}
+d[i] = 9*2i - 9*2i/2 + 1, если i четно; \\
+d[i] = 8*2i - 6*2(i+1)/2 + 1, если i нечетно.
+\end{center}
+
+\newpage
+
+% Описание схемы распараллеливания
+\section*{Описание схемы распараллеливания}
+\addcontentsline{toc}{section}{Описание схемы распараллеливания}
+Распараллеливание исходной задачи делится на несколько шагов:
+\begin{enumerate}
+\item Необходимо разделить исходный массив вещественных чисел между доступными потоками. 
+\item После разделения, каждый поток выполняет сортировку Шелла на своей части исходного массива.
+\item После сортировки частей необходимо слить эти части в один массив, выполняем это четно-нечетным слиянием Бэтчера.
+\end{enumerate}
+\newpage
+
+% Описание программной реализации
+\section*{Описание программной реализации}
+\addcontentsline{toc}{section}{Описание программной реализации}
+\subsection*{OpenMP}
+\addcontentsline{toc}{subsection}{OpenMP}
+\par Библиотека OpenMP предоставляет обширное количество инструментов для разработки параллельных приложений. Перед объявлением параллельной секции объявим вектор, хранящий результат сортировки части исходного массива, далее объявим параллельную секцию с помощью #pragma omp parallel и установим количество запускаемых потоков, это количество будет равно количеству доступных потоков в данной функции, далее в параллельной секции получаем порядковый номер потока и распределяем данные между потоками, то есть исходное количество данных будет разделено на количество доступных потоков, затем выполняем сортировку полученной части данных, и сохраняем эти данные в результирующий вектор. После закрытия параллельной секции можно быть уверенным в том, что все потоки выполнили сортировку частей и сохранили ее в результирующий вектор, значит выполняем слияние векторов из результирующего вектора. В итоге получаем отсортированный исходный массив.
+
+\begin{lstlisting}
+std::vector<int> getParallelShellSort(const std::vector<int>& commonVector) {
+  int numberOfThread = omp_get_num_procs();
+  int dataPortion = commonVector.size() / numberOfThread;
+
+  vector<vector<int>> vecOfVec(numberOfThread);
+
+  #pragma omp parallel num_threads(numberOfThread)
+  {
+    int currentThread = omp_get_thread_num();
+    vector<int> local;
+
+    if (currentThread != numberOfThread - 1) {
+      local = {commonVector.begin() + currentThread * dataPortion,
+               commonVector.begin() + (currentThread + 1) * dataPortion};
+    } else {
+      local = {commonVector.begin() + currentThread * dataPortion,
+               commonVector.end()};
+    }
+
+    getSequantialShellSort(&local);
+    vecOfVec[currentThread] = local;
+  }
+
+  vector<int> resultVector = vecOfVec[0];
+  for (int i = 1; i < numberOfThread; ++i) {
+    resultVector = merge(resultVector, vecOfVec[i]);
+  }
+
+  return resultVector;
+}
+\end{lstlisting}
+
+\newpage
+
+\subsection*{TBB}
+\addcontentsline{toc}{subsection}{TBB}
+\par Библиотека TBB предоставляет более современные инструменты для разработки параллельных приложений, в отличие OpenMP TBB реализовывалось для языка C++. Здесь вместо параллельных секций есть специальные функции выполняющие распараллеливание, одну из них и буду использовать, tbb::parallel\_for эта функция принимает два параметра tbb::blocked\_range, класс отвечающий за распределение данных между потоками, и функтор или как в моем случае лямбда выражение, именно второй параметр и отвечает за выполняемую логику на каждом запущенном потоке. В этом случае явно данные делить не нужно, необходимо только указать логику в лямбда выражении, а именно получаем начало и конец части исходного массива, копируем эти данные во временный вектор, сортируем этот вектор, затем сохраняем его в результирующий вектор. TBB также гарантирует, что при переходе на следующую строку за вызовом функции tbb::parallel\_for, в результирующем векторе уже будут сохранены отсортированные части, значит можно сливать вектора результирующего вектора.
+В итоге получаем отсортированный исходный массив.
+
+\begin{lstlisting}
+vector<int> getParallelShellSort(const vector<int>& commonVector) {
+  vector<vector<int>> vecOfVec;
+
+  tbb::mutex pushMutex;
+  tbb::parallel_for(tbb::blocked_range<vector<int>::const_iterator>(
+                        commonVector.begin(), commonVector.end(), 10),
+                    [&](tbb::blocked_range<vector<int>::const_iterator> r) {
+                      vector<int> local = {r.begin(), r.end()};
+                      getSequantialShellSort(&local);
+
+                      pushMutex.lock();
+                      vecOfVec.push_back(std::move(local));
+                      pushMutex.unlock();
+                    });
+
+  vector<int> resultVector = vecOfVec[0];
+  for (vec_size_t i = 1; i < vecOfVec.size(); ++i) {
+    resultVector = merge(resultVector, vecOfVec[i]);
+  }
+
+  return resultVector;
+}
+\end{lstlisting}
+
+\newpage
+
+\subsection*{STD}
+\addcontentsline{toc}{subsection}{STD}
+\par До это момента рассматривались хоть и большие, популярные решения, но все же они являются "внешними". На сегодняшний день стандартная библиотека также готова предложить инструменты для решения поставленной задачи. Я буду использовать класс thread, который предоставляет удобный интерфейс для работы с потоками. С начала необходимо получить число потоков доступных для приложения, затем создать массив экземпляров класса thread, размер массива равен количеству потоков. Далее распределяем данные между потоками по уже известной схеме, выполняем инициализацию потока, и задаем ему функцию для выполнения, также уже знакомую нам. Далее при выходе из распределения и запуска задач, необходимо удостоверится, что каждый поток завершил выполнения своей логики, для этого есть метод .join, после этого получаем результат и записываем его в результирующий вектор. После этого можно выполнить слияние векторов. В итоге получаем отсортированный исходный массив.
+
+\begin{lstlisting}
+vector<int> getParallelShellSort(const vector<int>& commonVector) {
+  int numberOfThread = std::thread::hardware_concurrency();
+  int dataPortion = commonVector.size() / numberOfThread;
+
+  vector<vector<int>> vecOfVec(numberOfThread);
+
+  std::promise<vector<int>>* promises =
+      new std::promise<vector<int>>[numberOfThread];
+  std::future<vector<int>>* futures =
+      new std::future<vector<int>>[numberOfThread];
+  std::thread* threads = new std::thread[numberOfThread];
+
+  for (int i = 0; i < numberOfThread; ++i) {
+    futures[i] = promises[i].get_future();
+    vector<int> local;
+
+    if (i != numberOfThread - 1) {
+      local = {commonVector.begin() + i * dataPortion,
+               commonVector.begin() + (i + 1) * dataPortion};
+    } else {
+      local = {commonVector.begin() + i * dataPortion, commonVector.end()};
+    }
+
+    threads[i] = std::thread(threadShellSort, &local, std::move(promises[i]));
+    threads[i].join();
+    vecOfVec[i] = futures[i].get();
+  }
+
+  vector<int> resultVector = vecOfVec[0];
+  for (int i = 1; i < numberOfThread; ++i) {
+    resultVector = merge(resultVector, vecOfVec[i]);
+  }
+
+  delete[] promises;
+  delete[] futures;
+  delete[] threads;
+
+  return resultVector;
+}
+\end{lstlisting}
+
+\newpage
+
+% Подтверждение корректности
+\section*{Подтверждение корректности}
+\addcontentsline{toc}{section}{Подтверждение корректности}
+Для подтверждения корректности в последовательном и параллельных приложениях реализованы наборы тестов, использующие библиотеку для модульного тестирования Google Testing Framework. Успешное прохождение всего набора тестов подтверждает корректность работы приложения.
+
+\newpage
+
+% Результаты экспериментов
+\section*{Результаты экспериментов}
+\addcontentsline{toc}{section}{Результаты экспериментов}
+Вычислительные эксперименты для оценки эффективности параллельного варианта
+сортировки Шелла простым слиянием проводились на ПК со следующими характеристиками:
+\begin{itemize}
+\item Процессор: AMD Ryzen 5 4600H, 3.0 ГГц (4.0 ГГц, в режиме Turbo), количество ядер: 6;
+\item Оперативная память: 8 ГБ (DDR4), 3200 МГц;
+\item Операционная система: Windows 10 Home.
+\end{itemize}
+
+\par Эксперименты проводились на 12 потоках, так как с архитектурной точки зрения это является наиболее выигрышным решением, в тестах исходные массивы были различной длины, также их значения рандомизировались. (см. Таблицу 1).
+
+\begin{table}[!h]
+\caption{Результаты вычислительных экспериментов}
+\centering
+\begin{tabular}{| p{4cm} | p{4cm} | p{2cm} | p{2cm} | p{2cm} |}
+\hline
+Количество элементов в массиве & Последовательный алгоритм (сек.) & OpenMP (сек.) & TBB (сек.) & STD (сек.) \\[5pt]
+\hline
+1000000        & 0.1         & 0.05     & 0.04       & 0.04     \\
+5000000        & 0.6         & 0.2      & 0.2        & 0.2     \\
+10000000       & 1.2         & 0.3      & 0.3        & 0.3     \\
+50000000       & 6.1         & 1.8      & 1.7        & 1.6     \\
+100000000      & 12.3        & 4.5      & 4.3        & 4.4     \\
+\hline
+\end{tabular}
+\end{table}
+
+\par В таблице наглядно продемонстрировано преимущество параллельных алгоритмов над последовательным, причем время выполнение парралельнных алгоритмов между собой примерно равно.
+
+\newpage
+
+% Заключение
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+В ходе лабораторной работы было реализовано последовательное приложение для сортировки массива вещественных чисел, применяя алгоритм сортировки Шелла, на основе последовательного приложения были реализованы параллельные приложения, используя библиотеки OpenMP, TBB и дополнительно STD. Работоспособность программ была проверена с помощью Google Testing Framework.
+\newpage
+
+% Литература %
+\section*{Литература}
+\addcontentsline{toc}{section}{Литература}
+\begin{enumerate}
+\item Документация по С++, URL: \url{https://prog-cpp.ru/cpp/}
+\item Теоретические и практические статьи по С++, URL:\url{ https://habr.com/}
+\item Документация по OpenMP для MSVC. URL: \url{https://docs.microsoft.com/ru-ru/cpp/parallel/openmp/reference/openmp-library-reference?view=msvc-170}
+\item Документация по TBB. URL: \url{https://oneapi-src.github.io/oneTBB/main/tbb_userguide/title.html}
+\end{enumerate} 
+\newpage
+
+% Приложение
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+\par Последовательная реализация:
+\begin{center}
+Header
+\end{center}
+\begin{lstlisting}
+// Copyright 2022 Chornyi Yura
+#ifndef MODULES_TASK_1_CHORNYI_Y_SHELL_SORT_WITH_BATHER_SHELL_SORT_H_
+#define MODULES_TASK_1_CHORNYI_Y_SHELL_SORT_WITH_BATHER_SHELL_SORT_H_
+
+#include <vector>
+
+std::vector<int> getRandomVector(const std::vector<int>::size_type size);
+void getShellSort(std::vector<int>* commonVector);
+
+#endif  // MODULES_TASK_1_CHORNYI_Y_SHELL_SORT_WITH_BATHER_SHELL_SORT_H_
+\end{lstlisting}
+
+\begin{center}
+Source
+\end{center}
+\begin{lstlisting}
+// Copyright 2022 Chornyi Yura
+#include <vector>
+#include <random>
+#include "../../../modules/task_1/chornyi_y_shell_sort_with_bather/shell_sort.h"
+
+using std::vector;
+typedef vector<int>::size_type vec_size_t;
+
+vector<int> getRandomVector(const vec_size_t size) {
+    std::random_device dev;
+    std::mt19937 gen(dev());
+    vector<int> resultVector(size);
+
+    for (vec_size_t i = 0; i < size; ++i) {
+        resultVector[i] = gen() % 10000;
+    }
+
+    return resultVector;
+}
+
+vector<int> sedgwickOrder(const vec_size_t sizeOfVector) {
+  vector<int> result;
+  int firstCommonMultiple = 1, secondEvenMultiple = 1, secondOddMultiple = 1;
+  int counter = 0;
+
+  do {
+    if (counter++ % 2 == 0) {
+      result.push_back(9 * firstCommonMultiple - 9 * secondEvenMultiple + 1);
+      secondEvenMultiple *= 2;
+    } else {
+      secondOddMultiple *= 2;
+      result.push_back(8 * firstCommonMultiple - 6 * secondOddMultiple + 1);
+    }
+    firstCommonMultiple *= 2;
+  } while (static_cast<vec_size_t>(3 * result[result.size() - 1]) <
+           sizeOfVector);
+
+  return result;
+}
+
+void getShellSort(vector<int>* commonVector) {
+  vector<int> vectorOfGap = sedgwickOrder(commonVector->size());
+
+  for (int counter = vectorOfGap.size() - 1; counter >= 0; --counter) {
+    size_t currentGap = vectorOfGap[counter];
+
+    for (vec_size_t i = currentGap; i < commonVector->size(); ++i) {
+      for (int j = i - currentGap;
+           (j >= 0) && (commonVector->at(j) > commonVector->at(j + currentGap));
+           j -= currentGap) {
+        std::swap(commonVector->at(j), commonVector->at(j + currentGap));
+      }
+    }
+  }
+}
+\end{lstlisting}
+
+\begin{center}
+Main
+\end{center}
+\begin{lstlisting}
+// Copyright 2022 Chornyi Yura
+#include <gtest/gtest.h>
+#include <vector>
+#include <algorithm>
+#include "./shell_sort.h"
+
+using std::vector;
+
+TEST(Sequential, Shell_Sort_100) {
+    vector<int> vec = getRandomVector(100);
+
+    getShellSort(&vec);
+    bool isSorted = std::is_sorted(vec.begin(), vec.end());
+
+    ASSERT_EQ(isSorted, true);
+}
+
+TEST(Sequential, Shell_Sort_150) {
+  vector<int> vec = getRandomVector(150);
+
+  getShellSort(&vec);
+  bool isSorted = std::is_sorted(vec.begin(), vec.end());
+
+  ASSERT_EQ(isSorted, true);
+}
+
+TEST(Sequential, Shell_Sort_200) {
+  vector<int> vec = getRandomVector(200);
+
+  getShellSort(&vec);
+  bool isSorted = std::is_sorted(vec.begin(), vec.end());
+
+  ASSERT_EQ(isSorted, true);
+}
+
+TEST(Sequential, Shell_Sort_250) {
+  vector<int> vec = getRandomVector(250);
+
+  getShellSort(&vec);
+  bool isSorted = std::is_sorted(vec.begin(), vec.end());
+
+  ASSERT_EQ(isSorted, true);
+}
+
+TEST(Sequential, Shell_Sort_300) {
+  vector<int> vec = getRandomVector(300);
+
+  getShellSort(&vec);
+  bool isSorted = std::is_sorted(vec.begin(), vec.end());
+
+  ASSERT_EQ(isSorted, true);
+}
+
+int main(int argc, char **argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}
+\end{lstlisting}
+
+\newpage
+
+\par Реализация с использованием технологии OpenMP:
+\begin{center}
+Header
+\end{center}
+\begin{lstlisting}
+// Copyright 2022 Chornyi Yura
+#ifndef MODULES_TASK_2_CHORNYI_Y_SHELL_SORT_WITH_BATHER_SHELL_SORT_H_
+#define MODULES_TASK_2_CHORNYI_Y_SHELL_SORT_WITH_BATHER_SHELL_SORT_H_
+
+#include <vector>
+
+std::vector<int> getRandomVector(const std::vector<int>::size_type size);
+void getSequantialShellSort(std::vector<int>* commonVector);
+std::vector<int> getParallelShellSort(const std::vector<int>& commonVector);
+
+#endif  // MODULES_TASK_2_CHORNYI_Y_SHELL_SORT_WITH_BATHER_SHELL_SORT_H_
+\end{lstlisting}
+
+\begin{center}
+Source
+\end{center}
+\begin{lstlisting}
+// Copyright 2022 Chornyi Yura
+#include <omp.h>
+#include <random>
+#include <vector>
+
+#include "../../../modules/task_2/chornyi_y_shell_sort_with_bather/shell_sort.h"
+
+using std::vector;
+typedef vector<int>::size_type vec_size_t;
+
+vector<int> getRandomVector(const vec_size_t size) {
+  std::random_device dev;
+  std::mt19937 gen(dev());
+  vector<int> resultVector(size);
+
+  for (vec_size_t i = 0; i < size; ++i) {
+    resultVector[i] = gen() % 10000;
+  }
+
+  return resultVector;
+}
+
+vector<int> sedgwickOrder(const vec_size_t sizeOfVector) {
+  vector<int> result;
+  int firstCommonMultiple = 1, secondEvenMultiple = 1, secondOddMultiple = 1;
+  int counter = 0;
+
+  do {
+    if (counter++ % 2 == 0) {
+      result.push_back(9 * firstCommonMultiple - 9 * secondEvenMultiple + 1);
+      secondEvenMultiple *= 2;
+    } else {
+      secondOddMultiple *= 2;
+      result.push_back(8 * firstCommonMultiple - 6 * secondOddMultiple + 1);
+    }
+    firstCommonMultiple *= 2;
+  } while (static_cast<vec_size_t>(3 * result[result.size() - 1]) <
+           sizeOfVector);
+
+  return result;
+}
+
+vector<int> merge(const vector<int>& firstVector,
+                  const vector<int>& secondVector) {
+  vector<int> resultVector(firstVector.size() + secondVector.size());
+
+  size_t firstIt, secondIt, resutIt;
+  firstIt = secondIt = resutIt = 0;
+
+  while (firstIt < firstVector.size() && secondIt < secondVector.size()) {
+    if (firstVector[firstIt] < secondVector[secondIt]) {
+      resultVector[resutIt++] = firstVector[firstIt++];
+    } else {
+      resultVector[resutIt++] = secondVector[secondIt++];
+    }
+  }
+
+  while (firstIt < firstVector.size()) {
+    resultVector[resutIt++] = firstVector[firstIt++];
+  }
+  while (secondIt < secondVector.size()) {
+    resultVector[resutIt++] = secondVector[secondIt++];
+  }
+
+  return resultVector;
+}
+
+void getSequantialShellSort(vector<int>* commonVector) {
+  vector<int> vectorOfGap = sedgwickOrder(commonVector->size());
+
+  for (int counter = vectorOfGap.size() - 1; counter >= 0; --counter) {
+    size_t currentGap = vectorOfGap[counter];
+
+    for (vec_size_t i = currentGap; i < commonVector->size(); ++i) {
+      for (int j = i - currentGap;
+           (j >= 0) && (commonVector->at(j) > commonVector->at(j + currentGap));
+           j -= currentGap) {
+        std::swap(commonVector->at(j), commonVector->at(j + currentGap));
+      }
+    }
+  }
+}
+
+std::vector<int> getParallelShellSort(const std::vector<int>& commonVector) {
+  int numberOfThread = omp_get_num_procs();
+  int dataPortion = commonVector.size() / numberOfThread;
+
+  vector<vector<int>> vecOfVec(numberOfThread);
+
+  #pragma omp parallel num_threads(numberOfThread)
+  {
+    int currentThread = omp_get_thread_num();
+    vector<int> local;
+
+    if (currentThread != numberOfThread - 1) {
+      local = {commonVector.begin() + currentThread * dataPortion,
+               commonVector.begin() + (currentThread + 1) * dataPortion};
+    } else {
+      local = {commonVector.begin() + currentThread * dataPortion,
+               commonVector.end()};
+    }
+
+    getSequantialShellSort(&local);
+    vecOfVec[currentThread] = local;
+  }
+
+  vector<int> resultVector = vecOfVec[0];
+  for (int i = 1; i < numberOfThread; ++i) {
+    resultVector = merge(resultVector, vecOfVec[i]);
+  }
+
+  return resultVector;
+}
+\end{lstlisting}
+
+\begin{center}
+Main
+\end{center}
+\begin{lstlisting}
+// Copyright 2022 Chornyi Yura
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <vector>
+
+#include "./shell_sort.h"
+
+using std::vector;
+
+TEST(Parallel, Shell_Sort_100) {
+  vector<int> vec = getRandomVector(100);
+
+  auto result = getParallelShellSort(vec);
+  bool isSorted = std::is_sorted(result.begin(), result.end());
+
+  ASSERT_EQ(isSorted, true);
+}
+
+TEST(Parallel, Shell_Sort_150) {
+  vector<int> vec = getRandomVector(150);
+
+  auto result = getParallelShellSort(vec);
+  bool isSorted = std::is_sorted(result.begin(), result.end());
+
+  ASSERT_EQ(isSorted, true);
+}
+
+TEST(Parallel, Shell_Sort_200) {
+  vector<int> vec = getRandomVector(200);
+
+  auto result = getParallelShellSort(vec);
+  bool isSorted = std::is_sorted(result.begin(), result.end());
+
+  ASSERT_EQ(isSorted, true);
+}
+
+TEST(Parallel, Shell_Sort_250) {
+  vector<int> vec = getRandomVector(250);
+
+  auto result = getParallelShellSort(vec);
+  bool isSorted = std::is_sorted(result.begin(), result.end());
+
+  ASSERT_EQ(isSorted, true);
+}
+
+TEST(Parallel, Shell_Sort_300) {
+  vector<int> vec = getRandomVector(300);
+
+  auto result = getParallelShellSort(vec);
+  bool isSorted = std::is_sorted(result.begin(), result.end());
+
+  ASSERT_EQ(isSorted, true);
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+\end{lstlisting}
+
+\newpage
+
+\par Реализация с использованием технологии TBB:
+\begin{center}
+Header
+\end{center}
+\begin{lstlisting}
+// Copyright 2022 Chornyi Yura
+#ifndef MODULES_TASK_3_CHORNYI_Y_SHELL_SORT_WITH_BATHER_SHELL_SORT_H_
+#define MODULES_TASK_3_CHORNYI_Y_SHELL_SORT_WITH_BATHER_SHELL_SORT_H_
+
+#include <vector>
+
+std::vector<int> getRandomVector(const std::vector<int>::size_type size);
+void getSequantialShellSort(std::vector<int>* commonVector);
+std::vector<int> getParallelShellSort(const std::vector<int>& commonVector);
+
+#endif  // MODULES_TASK_3_CHORNYI_Y_SHELL_SORT_WITH_BATHER_SHELL_SORT_H_
+\end{lstlisting}
+
+\begin{center}
+Source
+\end{center}
+\begin{lstlisting}
+// Copyright 2022 Chornyi Yura
+#include "../../../modules/task_3/chornyi_y_shell_sort_with_bather/shell_sort.h"
+
+#include <tbb/tbb.h>
+
+#include <random>
+#include <vector>
+#include <iostream>
+
+using std::vector;
+typedef vector<int>::size_type vec_size_t;
+
+vector<int> getRandomVector(const vec_size_t size) {
+  std::random_device dev;
+  std::mt19937 gen(dev());
+  vector<int> resultVector(size);
+
+  for (vec_size_t i = 0; i < size; ++i) {
+    resultVector[i] = gen() % 100;
+  }
+
+  return resultVector;
+}
+
+vector<int> sedgwickOrder(const vec_size_t sizeOfVector) {
+  vector<int> result;
+  int firstCommonMultiple = 1, secondEvenMultiple = 1, secondOddMultiple = 1;
+  int counter = 0;
+
+  do {
+    if (counter++ % 2 == 0) {
+      result.push_back(9 * firstCommonMultiple - 9 * secondEvenMultiple + 1);
+      secondEvenMultiple *= 2;
+    } else {
+      secondOddMultiple *= 2;
+      result.push_back(8 * firstCommonMultiple - 6 * secondOddMultiple + 1);
+    }
+    firstCommonMultiple *= 2;
+  } while (static_cast<vec_size_t>(3 * result[result.size() - 1]) <
+           sizeOfVector);
+
+  return result;
+}
+
+vector<int> merge(const vector<int>& firstVector,
+                  const vector<int>& secondVector) {
+  vector<int> resultVector(firstVector.size() + secondVector.size());
+
+  size_t firstIt, secondIt, resutIt;
+  firstIt = secondIt = resutIt = 0;
+
+  while (firstIt < firstVector.size() && secondIt < secondVector.size()) {
+    if (firstVector[firstIt] < secondVector[secondIt]) {
+      resultVector[resutIt++] = firstVector[firstIt++];
+    } else {
+      resultVector[resutIt++] = secondVector[secondIt++];
+    }
+  }
+
+  while (firstIt < firstVector.size()) {
+    resultVector[resutIt++] = firstVector[firstIt++];
+  }
+  while (secondIt < secondVector.size()) {
+    resultVector[resutIt++] = secondVector[secondIt++];
+  }
+
+  return resultVector;
+}
+
+void getSequantialShellSort(vector<int>* commonVector) {
+  vector<int> vectorOfGap = sedgwickOrder(commonVector->size());
+
+  for (int counter = vectorOfGap.size() - 1; counter >= 0; --counter) {
+    size_t currentGap = vectorOfGap[counter];
+
+    for (vec_size_t i = currentGap; i < commonVector->size(); ++i) {
+      for (int j = i - currentGap;
+           (j >= 0) && (commonVector->at(j) > commonVector->at(j + currentGap));
+           j -= currentGap) {
+        std::swap(commonVector->at(j), commonVector->at(j + currentGap));
+      }
+    }
+  }
+}
+
+vector<int> getParallelShellSort(const vector<int>& commonVector) {
+  vector<vector<int>> vecOfVec;
+
+  tbb::mutex pushMutex;
+  tbb::parallel_for(tbb::blocked_range<vector<int>::const_iterator>(
+                        commonVector.begin(), commonVector.end(), 10),
+                    [&](tbb::blocked_range<vector<int>::const_iterator> r) {
+                      vector<int> local = {r.begin(), r.end()};
+                      getSequantialShellSort(&local);
+
+                      pushMutex.lock();
+                      vecOfVec.push_back(std::move(local));
+                      pushMutex.unlock();
+                    });
+
+  vector<int> resultVector = vecOfVec[0];
+  for (vec_size_t i = 1; i < vecOfVec.size(); ++i) {
+    resultVector = merge(resultVector, vecOfVec[i]);
+  }
+
+  return resultVector;
+}
+\end{lstlisting}
+
+\begin{center}
+Main
+\end{center}
+\begin{lstlisting}
+// Copyright 2022 Chornyi Yura
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <vector>
+
+#include "./shell_sort.h"
+
+using std::vector;
+
+TEST(Parallel, Shell_Sort_100) {
+  vector<int> vec = getRandomVector(100);
+
+  auto result = getParallelShellSort(vec);
+  bool isSorted = std::is_sorted(result.begin(), result.end());
+
+  ASSERT_EQ(isSorted, true);
+}
+
+TEST(Parallel, Shell_Sort_150) {
+  vector<int> vec = getRandomVector(150);
+
+  auto result = getParallelShellSort(vec);
+  bool isSorted = std::is_sorted(result.begin(), result.end());
+
+  ASSERT_EQ(isSorted, true);
+}
+
+TEST(Parallel, Shell_Sort_200) {
+  vector<int> vec = getRandomVector(200);
+
+  auto result = getParallelShellSort(vec);
+  bool isSorted = std::is_sorted(result.begin(), result.end());
+
+  ASSERT_EQ(isSorted, true);
+}
+
+TEST(Parallel, Shell_Sort_250) {
+  vector<int> vec = getRandomVector(250);
+
+  auto result = getParallelShellSort(vec);
+  bool isSorted = std::is_sorted(result.begin(), result.end());
+
+  ASSERT_EQ(isSorted, true);
+}
+
+TEST(Parallel, Shell_Sort_300) {
+  vector<int> vec = getRandomVector(300);
+
+  auto result = getParallelShellSort(vec);
+  bool isSorted = std::is_sorted(result.begin(), result.end());
+
+  ASSERT_EQ(isSorted, true);
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+\end{lstlisting}
+
+\newpage
+
+\par Реализация с использованием технологии STD:
+\begin{center}
+Header
+\end{center}
+\begin{lstlisting}
+// Copyright 2022 Chornyi Yura
+#ifndef MODULES_TASK_4_CHORNYI_Y_SHELL_SORT_WITH_BETCHER_SHELL_SORT_H_
+#define MODULES_TASK_4_CHORNYI_Y_SHELL_SORT_WITH_BETCHER_SHELL_SORT_H_
+
+#include <vector>
+
+std::vector<int> getRandomVector(const std::vector<int>::size_type size);
+void getSequantialShellSort(std::vector<int>* commonVector);
+std::vector<int> getParallelShellSort(const std::vector<int>& commonVector);
+
+#endif  // MODULES_TASK_4_CHORNYI_Y_SHELL_SORT_WITH_BETCHER_SHELL_SORT_H_
+\end{lstlisting}
+
+\begin{center}
+Source
+\end{center}
+\begin{lstlisting}
+// Copyright 2022 Chornyi Yura
+#include "../../../modules/task_4/chornyi_y_shell_sort_with_betcher/shell_sort.h"
+
+#include <random>
+#include <vector>
+
+#include "../../../3rdparty/unapproved/unapproved.h"
+
+using std::vector;
+typedef vector<int>::size_type vec_size_t;
+
+vector<int> getRandomVector(const vec_size_t size) {
+  std::random_device dev;
+  std::mt19937 gen(dev());
+  vector<int> resultVector(size);
+
+  for (vec_size_t i = 0; i < size; ++i) {
+    resultVector[i] = gen() % 10000;
+  }
+
+  return resultVector;
+}
+
+vector<int> sedgwickOrder(const vec_size_t sizeOfVector) {
+  vector<int> result;
+  int firstCommonMultiple = 1, secondEvenMultiple = 1, secondOddMultiple = 1;
+  int counter = 0;
+
+  do {
+    if (counter++ % 2 == 0) {
+      result.push_back(9 * firstCommonMultiple - 9 * secondEvenMultiple + 1);
+      secondEvenMultiple *= 2;
+    } else {
+      secondOddMultiple *= 2;
+      result.push_back(8 * firstCommonMultiple - 6 * secondOddMultiple + 1);
+    }
+    firstCommonMultiple *= 2;
+  } while (static_cast<vec_size_t>(3 * result[result.size() - 1]) <
+           sizeOfVector);
+
+  return result;
+}
+
+vector<int> merge(const vector<int>& firstVector,
+                  const vector<int>& secondVector) {
+  vector<int> resultVector(firstVector.size() + secondVector.size());
+
+  size_t firstIt, secondIt, resutIt;
+  firstIt = secondIt = resutIt = 0;
+
+  while (firstIt < firstVector.size() && secondIt < secondVector.size()) {
+    if (firstVector[firstIt] < secondVector[secondIt]) {
+      resultVector[resutIt++] = firstVector[firstIt++];
+    } else {
+      resultVector[resutIt++] = secondVector[secondIt++];
+    }
+  }
+
+  while (firstIt < firstVector.size()) {
+    resultVector[resutIt++] = firstVector[firstIt++];
+  }
+  while (secondIt < secondVector.size()) {
+    resultVector[resutIt++] = secondVector[secondIt++];
+  }
+
+  return resultVector;
+}
+
+void getSequantialShellSort(vector<int>* commonVector) {
+  vector<int> vectorOfGap = sedgwickOrder(commonVector->size());
+
+  for (int counter = vectorOfGap.size() - 1; counter >= 0; --counter) {
+    size_t currentGap = vectorOfGap[counter];
+
+    for (vec_size_t i = currentGap; i < commonVector->size(); ++i) {
+      for (int j = i - currentGap;
+           (j >= 0) && (commonVector->at(j) > commonVector->at(j + currentGap));
+           j -= currentGap) {
+        std::swap(commonVector->at(j), commonVector->at(j + currentGap));
+      }
+    }
+  }
+}
+
+void threadShellSort(vector<int>* commonVector,
+                     std::promise<vector<int>>&& pr) {
+  getSequantialShellSort(commonVector);
+  pr.set_value(std::move(*commonVector));
+}
+
+vector<int> getParallelShellSort(const vector<int>& commonVector) {
+  int numberOfThread = std::thread::hardware_concurrency();
+  int dataPortion = commonVector.size() / numberOfThread;
+
+  vector<vector<int>> vecOfVec(numberOfThread);
+
+  std::promise<vector<int>>* promises =
+      new std::promise<vector<int>>[numberOfThread];
+  std::future<vector<int>>* futures =
+      new std::future<vector<int>>[numberOfThread];
+  std::thread* threads = new std::thread[numberOfThread];
+
+  for (int i = 0; i < numberOfThread; ++i) {
+    futures[i] = promises[i].get_future();
+    vector<int> local;
+
+    if (i != numberOfThread - 1) {
+      local = {commonVector.begin() + i * dataPortion,
+               commonVector.begin() + (i + 1) * dataPortion};
+    } else {
+      local = {commonVector.begin() + i * dataPortion, commonVector.end()};
+    }
+
+    threads[i] = std::thread(threadShellSort, &local, std::move(promises[i]));
+    threads[i].join();
+    vecOfVec[i] = futures[i].get();
+  }
+
+  vector<int> resultVector = vecOfVec[0];
+  for (int i = 1; i < numberOfThread; ++i) {
+    resultVector = merge(resultVector, vecOfVec[i]);
+  }
+
+  delete[] promises;
+  delete[] futures;
+  delete[] threads;
+
+  return resultVector;
+}
+\end{lstlisting}
+
+\begin{center}
+Main
+\end{center}
+\begin{lstlisting}
+// Copyright 2022 Chornyi Yura
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <vector>
+
+#include "./shell_sort.h"
+
+using std::vector;
+
+TEST(Parallel, Shell_Sort_100) {
+  vector<int> vec = getRandomVector(100);
+
+  auto result = getParallelShellSort(vec);
+  bool isSorted = std::is_sorted(result.begin(), result.end());
+
+  ASSERT_EQ(isSorted, true);
+}
+
+TEST(Parallel, Shell_Sort_150) {
+  vector<int> vec = getRandomVector(150);
+
+  auto result = getParallelShellSort(vec);
+  bool isSorted = std::is_sorted(result.begin(), result.end());
+
+  ASSERT_EQ(isSorted, true);
+}
+
+TEST(Parallel, Shell_Sort_200) {
+  vector<int> vec = getRandomVector(200);
+
+  auto result = getParallelShellSort(vec);
+  bool isSorted = std::is_sorted(result.begin(), result.end());
+
+  ASSERT_EQ(isSorted, true);
+}
+
+TEST(Parallel, Shell_Sort_250) {
+  vector<int> vec = getRandomVector(250);
+
+  auto result = getParallelShellSort(vec);
+  bool isSorted = std::is_sorted(result.begin(), result.end());
+
+  ASSERT_EQ(isSorted, true);
+}
+
+TEST(Parallel, Shell_Sort_300) {
+  vector<int> vec = getRandomVector(300);
+
+  auto result = getParallelShellSort(vec);
+  bool isSorted = std::is_sorted(result.begin(), result.end());
+
+  ASSERT_EQ(isSorted, true);
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+\end{lstlisting}
+
+\end{document}
